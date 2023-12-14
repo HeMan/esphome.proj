@@ -1,0 +1,336 @@
+substitutions:
+  esp_name: epaper
+  run_time: 5min  # can be as long as needed to get data
+  sleep_time: 20min  # normal sleep time
+  night_sleep_time: 6h  # 1st sleep time after midnight
+
+esphome:
+  name: ${esp_name}
+
+network:
+  enable_ipv6: true
+
+# Example configuration entry
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    version: 5.0.2
+    platform_version: 6.3.2
+    # Custom sdkconfig options
+    # sdkconfig_options:
+    #   CONFIG_COMPILER_OPTIMIZATION_SIZE: y
+    # Advanced tweaking options
+    advanced:
+      ignore_efuse_mac_crc: false
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  domain: !secret domain
+  output_power: 20.5dB
+  enable_btm: true
+  #use_address: 192.168.1.218
+
+logger:
+  level: DEBUG
+
+#i2s_audio:
+#  i2s_lrclk_pin: GPIO33
+#  i2s_bclk_pin: GPIO19
+
+#speaker:
+#  - platform: i2s_audio
+#    dac_type: external
+#    i2s_dout_pin: GPIO22
+#    mode: mono
+
+
+api:
+  # password: !secret api_password
+  encryption:
+    key: !secret encryption_key
+
+ota:
+
+time:
+  - platform: homeassistant
+    timezone: Europe/Stockholm
+    id: time1
+    on_time_sync:
+      then:
+        - component.update: t5_display
+
+spi:
+  clk_pin: 18
+  mosi_pin: 23
+
+esp32_ble_tracker:
+
+#esp32_ble_beacon:
+#  type: iBeacon
+#  uuid: 'e99e1479-4717-b243-0bd0-87a4bb0c9510'
+
+
+bluetooth_proxy:
+  active: true
+
+ble_client:
+  - mac_address: 10:CE:A9:D7:2A:F6
+    id: my_anova
+
+
+binary_sensor:
+  - platform: homeassistant
+    entity_id: binary_sensor.trashbin
+    id: trashbin
+    internal: true
+  - platform: gpio
+    name: "Sidebutton"
+    pin:
+      number: GPIO39
+      inverted: true
+    on_double_click:
+      min_length: 50ms
+      max_length: 350ms
+      then:
+        - component.update: t5_display
+
+
+
+climate:
+  - platform: anova
+    name: "Anova Precision Cooker"
+    ble_client_id: my_anova
+    unit_of_measurement: c
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+
+  - platform: homeassistant
+    entity_id: sensor.sonoff_s55_ds18b20_temperature
+    id: ext_temp
+    internal: true
+
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_forecast_precipitation_probability
+    id: prec_perc
+    internal: true
+
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_forecast_temperature_low
+    id: fc_low
+    internal: true
+
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_forecast_temperature
+    id: fc_high
+    internal: true
+
+text_sensor:
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_precipitation_kind
+    id: fc_prec
+    internal: true
+
+  - platform: homeassistant
+    entity_id: sensor.openweathermap_forecast_condition
+    id: fc_weather
+    internal: true
+    on_value:  # Actions to perform once data for the last sensor has been received
+      then:
+        - component.update: t5_display
+
+  - platform: homeassistant
+    entity_id: input_text.e_paper_message
+    id: paper_message
+    internal: true
+    on_value:
+      then:
+        - component.update: t5_display
+
+  - platform: homeassistant
+    entity_id: sensor.postnord_delivery_93146
+    id: mail_delivery
+    internal: true
+
+  - platform: wifi_info
+    ip_address:
+      name: ESP IP Address
+#      a0:
+#        name: ESP IP Address 0
+#      a1:
+#        name: ESP IP Address 1
+#      a2:
+#        name: ESP IP Address 2
+#      a3:
+#        name: ESP IP Address 3
+#      a4:
+#        name: ESP IP Address 4
+    ssid:
+      name: ESP Connected SSID
+    bssid:
+      name: ESP Connected BSSID
+    mac_address:
+      name: ESP Mac Wifi Address
+    scan_results:
+      name: ESP Latest Scan Results
+
+button:
+  - platform: restart
+    name: "${esp_name} Restart"
+
+  - platform: template
+    name: "${esp_name} Refresh"
+    icon: "mdi:update"
+    on_press:
+      then:
+        - component.update: t5_display
+
+font:
+  - file: "GoogleSans-Bold.ttf"
+    id: font_name
+    size: 38
+  - file: "GoogleSans-Medium.ttf"
+    id: small
+    size: 18
+  - file: "GoogleSans-Medium.ttf"
+    id: medium
+    size: 24
+
+    # https://pictogrammers.github.io/@mdi/font/5.3.45/
+  - file: 'materialdesignicons-webfont.ttf'
+    id: font_icons
+    size: 56
+    glyphs:
+      - "\U000F0594"  # clear-night
+      - "\U000F0590"  # cloudy
+      - "\U000F0595"  # partlycloudy
+      - "\U000F0591"  # fog
+      - "\U000F0592"  # hail
+      - "\U000F0593"  # lightning
+      - "\U000F067E"  # lightning-rainy
+      - "\U000F0596"  # pouring
+      - "\U000F0597"  # rainy
+      - "\U000F0F36"  # snowy
+      - "\U000F067F"  # snowy-rainy
+      - "\U000F0599"  # sunny
+      - "\U000F059D"  # windy
+      - "\U000F059E"  # windy-variant
+      - "\U000F0F38"  # exceptional
+
+  - file: 'materialdesignicons-webfont.ttf'
+    id: font_icons_small
+    size: 26
+    glyphs:
+      - "\U000F10C2"  # Temperature High
+      - "\U000F10C3"  # Temperature Low
+      - "\U000F054B"  # umbrella
+      - "\U000F0592"  # hail
+      - "\U000F0593"  # lightning
+      - "\U000F067E"  # lightning-rainy
+      - "\U000F0597"  # rainy
+      - "\U000F0F36"  # snowy
+      - "\U000F0594"  # clear-night
+      - "\U000F0599"  # sunny
+      - "\U000F06EE"  # Mailbox
+      - "\U000F0A79"  # Trashcan
+      - " "
+
+
+display:
+  - platform: waveshare_epaper
+    id: t5_display
+    cs_pin: 5
+    dc_pin: 17
+    busy_pin: 4
+    reset_pin: 16
+    model: 2.13in-ttgo-b73
+    update_interval: 10s
+    lambda: |-
+      #define x_res 128
+      #define middle x_res/2
+      std::string weather_icon;
+      std::string perception_icon;
+      std::string mailbox_icon;
+      std::string trashbin_icon;
+      if (id(fc_weather).state == "clear-night") {
+        weather_icon = "\U000F0594";
+      }
+      if (id(fc_weather).state == "cloudy") {
+        weather_icon = "\U000F0590";
+      }
+      if (id(fc_weather).state == "partlycloudy") {
+        weather_icon = "\U000F0595";
+      }
+      if (id(fc_weather).state == "fog") {
+        weather_icon = "\U000F0591";
+      }
+      if (id(fc_weather).state == "hail") {
+        weather_icon = "\U000F0592";
+      }
+      if (id(fc_weather).state == "lightning") {
+        weather_icon = "\U000F0593";
+      }
+      if (id(fc_weather).state == "lightning-rainy") {
+        weather_icon = "\U000F067E";
+      }
+      if (id(fc_weather).state == "pouring") {
+        weather_icon = "\U000F0596";
+      }
+      if (id(fc_weather).state == "rainy") {
+        weather_icon = "\U000F0597";
+      }
+      if (id(fc_weather).state == "snowy") {
+        weather_icon = "\U000F0F36";
+      }
+      if (id(fc_weather).state == "snowy-rainy") {
+        weather_icon = "\U000F067F";
+      }
+      if (id(fc_weather).state == "sunny") {
+        weather_icon = "\U000F0599";
+      }
+      if (id(fc_weather).state == "windy") {
+        weather_icon = "\U000F059D";
+      }
+      if (id(fc_weather).state == "windy-variant") {
+        weather_icon = "\U000F059E";
+      }
+      if (id(fc_weather).state == "exceptional") {
+        weather_icon = "\U000F0F38";
+      }
+
+      if (id(fc_prec).state == "None") {
+        perception_icon = "  ";
+      }
+      if (id(fc_prec).state == "Hail") {
+        perception_icon = "\U000F0592";
+      }
+      if (id(fc_prec).state == "Rain") {
+        perception_icon = "\U000F0597";
+      }
+      if (id(fc_prec).state == "Snow") {
+        perception_icon = "\U000F0F36";
+      }
+
+      if (id(mail_delivery).state == "0") {
+        mailbox_icon = "\U000F06EE";
+      } else {
+        mailbox_icon = "  ";
+      }
+
+      if (id(trashbin).state) {
+        trashbin_icon = "\U000F0A79";
+      } else {
+        trashbin_icon = "  ";
+      }
+      it.printf(middle, 10, id(font_icons), TextAlign::TOP_CENTER, weather_icon.c_str());
+      it.printf(middle, 60, id(font_name), TextAlign::TOP_CENTER, "%.1f °C", id(ext_temp).state);
+      it.printf(middle, 120, id(medium), TextAlign::TOP_CENTER, "%s", id(paper_message).state.c_str());
+
+      it.printf(middle, 160, id(font_icons_small), TextAlign::TOP_CENTER, (mailbox_icon + trashbin_icon).c_str());
+      it.printf(middle, 180, id(small), TextAlign::TOP_CENTER, "Perception");
+      it.printf(middle, 205, id(font_icons_small), TextAlign::TOP_CENTER, perception_icon.c_str());
+      it.strftime(middle, 230, id(small), TextAlign::TOP_CENTER, "%d %b %H:%M", id(time1).now());
+
